@@ -98,6 +98,9 @@ control
 [neutron:children]
 network
 
+[opendaylight:children]
+network
+
 [cinder:children]
 control
 

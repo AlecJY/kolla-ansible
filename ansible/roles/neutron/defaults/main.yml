@@ -5,7 +5,7 @@ neutron_services:
   openvswitch-db-server:
     container_name: "openvswitch_db"
     image: "{{ openvswitch_db_image_full }}"
-    enabled: "{{ neutron_plugin_agent == 'openvswitch' }}"
+    enabled: "{{ neutron_plugin_agent in ['openvswitch', 'opendaylight'] }}"
     host_in_groups: >-
       {{
       True if orchestration_engine == 'KUBERNETES' else
@@ -25,7 +25,7 @@ neutron_services:
   openvswitch-vswitchd:
     container_name: "openvswitch_vswitchd"
     image: "{{ openvswitch_vswitchd_image_full }}"
-    enabled: "{{ neutron_plugin_agent == 'openvswitch' }}"
+    enabled: "{{ neutron_plugin_agent in ['openvswitch', 'opendaylight'] }}"
     host_in_groups: >-
       {{
       True if orchestration_engine == 'KUBERNETES' else
@@ -151,7 +151,7 @@ neutron_services:
     container_name: "neutron_l3_agent"
     image: "{{ neutron_l3_agent_image_full }}"
     privileged: True
-    enabled: "{{ not enable_neutron_vpnaas | bool }}"
+    enabled: "{{ not enable_neutron_vpnaas | bool and not enable_opendaylight_l3 | bool }}"
     host_in_groups: >-
       {{
       True if orchestration_engine == 'KUBERNETES' else
@@ -250,7 +250,7 @@ neutron_sfc_agent_image: "{{ docker_registry ~ '/' if docker_registry else '' }}
 neutron_sfc_agent_tag: "{{ openstack_release }}"
 neutron_sfc_agent_image_full: "{{ neutron_sfc_agent_image }}:{{ neutron_sfc_agent_tag }}"
 
-neutron_server_image: "{{ docker_registry ~ '/' if docker_registry else '' }}{{ docker_namespace }}/{{ kolla_base_distro }}-{{ kolla_install_type }}-neutron-server"
+neutron_server_image: "{{ docker_registry ~ '/' if docker_registry else '' }}{{ docker_namespace }}/{{ kolla_base_distro }}-{{ kolla_install_type }}-neutron-server{{ '-opendaylight' if enable_opendaylight | bool else '' }}"
 neutron_server_tag: "{{ openstack_release }}"
 neutron_server_image_full: "{{ neutron_server_image }}:{{ neutron_server_tag }}"
 
@@ -289,7 +289,7 @@ openstack_neutron_auth: "{{ openstack_auth }}"
 ####################
 extension_drivers:
   - name: "qos"
-    enabled: "{{ enable_neutron_qos | bool }}"
+    enabled: "{{ enable_neutron_qos | bool or enable_opendaylight_qos | bool }}"
   - name: "port_security"
     enabled: "{{ enable_tacker | bool or enable_designate | bool }}"
   - name: "dns"
@@ -305,5 +305,7 @@ neutron_notification_topics:
     enabled: "{{ enable_ceilometer | bool or enable_searchlight | bool }}"
   - name: notifications_designate
     enabled: "{{ enable_designate | bool }}"
+  - name: "odl-qos-v2"
+    enabled: "{{ enable_opendaylight_qos | bool }}"
 
 neutron_enabled_notification_topics: "{{ neutron_notification_topics | selectattr('enabled', 'equalto', true) | list }}"
