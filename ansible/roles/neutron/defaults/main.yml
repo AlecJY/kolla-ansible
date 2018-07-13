@@ -26,7 +26,6 @@ neutron_services:
     container_name: "openvswitch_vswitchd"
     image: "{{ openvswitch_vswitchd_image_full }}"
     enabled: "{{ neutron_plugin_agent in ['openvswitch', 'opendaylight'] }}"
-    group: "openvswitch"
     host_in_groups: >-
       {{
       True if orchestration_engine == 'KUBERNETES' else
