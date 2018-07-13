@@ -304,7 +304,7 @@
 
 - name: Copying over start-ovs file for openvswitch-vswitchd
   vars:
-    service: "{{ openvswitch_services['openvswitch-vswitchd'] }}"
+    service: "{{ neutron_services['openvswitch-vswitchd'] }}"
   template:
     src: "{{ role_path }}/templates/start-ovs.j2"
     dest: "{{ node_config_directory }}/openvswitch-vswitchd/start-ovs"
