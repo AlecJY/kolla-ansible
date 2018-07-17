@@ -1,20 +1,61 @@
 
 odl-cluster-data {
+  bounded-mailbox {
+    mailbox-type = "org.opendaylight.controller.cluster.common.actor.MeteredBoundedMailbox"
+    mailbox-capacity = 1000
+    mailbox-push-timeout-time = 100ms
+  }
+
+  metric-capture-enabled = true
+  
   akka {
+    loglevel = "INFO"
+    loggers = ["akka.event.slf4j.Slf4jLogger"]
+    logger-startup-timeout = 300s
+
+    actor {
+      provider = "akka.cluster.ClusterActorRefProvider"
+      serializers {
+        java = "akka.serialization.JavaSerializer"
+        proto = "akka.remote.serialization.ProtobufSerializer"
+        readylocal = "org.opendaylight.controller.cluster.datastore.messages.ReadyLocalTransactionSerializer"
+      }
+
+      serialization-bindings {
+        "com.google.protobuf.Message" = proto
+        "org.opendaylight.controller.cluster.datastore.messages.ReadyLocalTransaction" = readylocal
+      }
+
+      default-dispatcher {
+        # Setting throughput to 1 makes the dispatcher fair. It processes 1 message from
+        # the mailbox before moving on to the next mailbox
+        throughput = 1
+      }
+
+      default-mailbox {
+        # When not using a BalancingDispatcher it is recommended that we use the SingleConsumerOnlyUnboundedMailbox
+        # as it is the most efficient for multiple producer/single consumer use cases
+        mailbox-type="akka.dispatch.SingleConsumerOnlyUnboundedMailbox"
+      }
+    }
+
     remote {
-      artery {
-          enabled = off
-          canonical.hostname = "{{ hostvars[inventory_hostname]['ansible_' + hostvars[inventory_hostname]['api_interface']]['ipv4']['address'] }}"
-          canonical.port = {{ opendaylight_clustering_port }}
-        }
+      log-remote-lifecycle-events = off
       netty.tcp {
         hostname = "{{ hostvars[inventory_hostname]['ansible_' + hostvars[inventory_hostname]['api_interface']]['ipv4']['address'] }}"
         port = {{ opendaylight_clustering_port }}
+        maximum-frame-size = 419430400
+        send-buffer-size = 52428800
+        receive-buffer-size = 52428800
       }
     }
 
     cluster {
       seed-nodes = [{% for host in groups['opendaylight'] %}"akka.tcp://opendaylight-cluster-data@{{ hostvars[host]['ansible_' + hostvars[host]['api_interface']]['ipv4']['address'] }}:{{ opendaylight_clustering_port }}"{% if not loop.last %},{% endif %}{% endfor %}]
+
+      seed-node-timeout = 12s
+
+      auto-down-unreachable-after = 300s
 
       roles = [
         "{{ hostvars[inventory_hostname]['ansible_hostname'] }}"
@@ -28,6 +69,43 @@ odl-cluster-data {
         leveldb {
         }
       }
+    }
+  }
+}
+
+odl-cluster-rpc {
+  bounded-mailbox {
+    mailbox-type = "org.opendaylight.controller.cluster.common.actor.MeteredBoundedMailbox"
+    mailbox-capacity = 1000
+    mailbox-push-timeout-time = 100ms
+  }
+
+  metric-capture-enabled = true
+
+  akka {
+    loglevel = "INFO"
+    loggers = ["akka.event.slf4j.Slf4jLogger"]
+    logger-startup-timeout = 300s
+
+    actor {
+      provider = "akka.cluster.ClusterActorRefProvider"
+
+    }
+    remote {
+      log-remote-lifecycle-events = off
+      netty.tcp {
+        hostname = "127.0.0.1"
+        port = 2551
+        maximum-frame-size = 419430400
+        send-buffer-size = 52428800
+        receive-buffer-size = 52428800
+      }
+    }
+
+    cluster {
+      seed-nodes = [{% for host in groups['opendaylight'] %}"akka.tcp://opendaylight-cluster-rpc@{{ hostvars[host]['ansible_' + hostvars[host]['api_interface']]['ipv4']['address'] }}:{{ opendaylight_clustering_port }}"{% if not loop.last %},{% endif %}{% endfor %}]
+
+      auto-down-unreachable-after = 300s
     }
   }
 }
